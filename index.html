@@ -37,16 +37,13 @@
 
         <div class="mb-3">
           <label class="form-label fw-bold">數量</label>
-          <select id="quantitySelect" class="form-select">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-            <option value="4">4</option><option value="5">5</option>
-          </select>
+          <input type="number" id="quantityInput" class="form-control" value="1" min="1" required>
           <div id="priceDisplay" class="mt-2 text-end"></div>
         </div>
 
         <div class="mb-3">
           <label class="form-label fw-bold">備註</label>
-          <input type="text" id="note" class="form-control" placeholder="加辣、飯少等">
+          <input type="text" id="note" class="form-control" placeholder="加辣、飯少、去冰、甜度...">
         </div>
 
         <div class="mb-3 form-check">
@@ -71,8 +68,8 @@
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"; 
-    let menuStore = [], currentPrice = 0;
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec址"; 
+    let menuStore = [], currentUnitPrice = 0;
 
     window.onload = () => {
       fetch(GAS_URL).then(res => res.json()).then(data => {
@@ -88,20 +85,24 @@
     };
 
     function updatePrice() {
-      const qty = parseInt(document.getElementById('quantitySelect').value);
-      const total = currentPrice * qty;
-      if(currentPrice > 0) {
-        document.getElementById('priceDisplay').innerHTML = `單價 $${currentPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
+      let qty = parseInt(document.getElementById('quantityInput').value) || 1;
+      if (qty < 1) qty = 1;
+      const total = currentUnitPrice * qty;
+      if(currentUnitPrice > 0) {
+        document.getElementById('priceDisplay').innerHTML = `單價 $${currentUnitPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
       }
       calcChange(total);
     }
 
     document.getElementById('menuSelect').onchange = function() {
       const idx = this.options[this.selectedIndex].dataset.idx;
-      if (idx !== undefined) { currentPrice = menuStore[idx][1]; updatePrice(); }
+      if (idx !== undefined) { 
+        currentUnitPrice = menuStore[idx][1]; 
+        updatePrice(); 
+      }
     };
 
-    document.getElementById('quantitySelect').onchange = updatePrice;
+    document.getElementById('quantityInput').oninput = updatePrice;
 
     document.getElementById('paidCheck').onchange = function() {
       document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
@@ -109,7 +110,8 @@
 
     function calcChange(total) {
       const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
-      const change = received - (total || currentPrice * parseInt(document.getElementById('quantitySelect').value));
+      const targetTotal = total || (currentUnitPrice * (parseInt(document.getElementById('quantityInput').value) || 1));
+      const change = received - targetTotal;
       document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
     }
 
@@ -125,8 +127,8 @@
         body: JSON.stringify({
           userName: document.getElementById('userName').value,
           item: document.getElementById('menuSelect').value,
-          price: currentPrice,
-          quantity: document.getElementById('quantitySelect').value,
+          price: currentUnitPrice,
+          quantity: document.getElementById('quantityInput').value,
           note: document.getElementById('note').value,
           hasPaid: document.getElementById('paidCheck').checked,
           receivedAmount: document.getElementById('receivedAmount').value
@@ -136,6 +138,7 @@
         this.reset(); btn.disabled = false; btn.innerText = "確認下單";
         document.getElementById('paymentSection').style.display = 'none';
         document.getElementById('priceDisplay').innerText = "";
+        document.getElementById('quantityInput').value = 1;
       });
     };
   </script>
