@@ -6,13 +6,11 @@
   <title>造型中餐點餐系統</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background-color: #f4f7f4; padding: 20px; font-family: "Microsoft JhengHei", sans-serif; color: #333; }
+    body { background-color: #f4f7f4; padding: 20px; font-family: "Microsoft JhengHei", sans-serif; }
     .order-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; max-width: 500px; margin: auto; }
-    .btn-submit { background-color: #556b2f; color: white; width: 100%; border-radius: 25px; border: none; padding: 12px; font-weight: bold; transition: 0.3s; }
-    .btn-submit:hover { background-color: #3e4e22; }
+    .btn-submit { background-color: #556b2f; color: white; width: 100%; border-radius: 25px; border: none; padding: 12px; font-weight: bold; }
     .price-tag { color: #556b2f; font-weight: bold; font-size: 1.4rem; }
-    #paymentSection { background-color: #f0f4ee; border-left: 5px solid #556b2f; display: none; margin-top: 15px; padding: 15px; border-radius: 8px; }
-    .restaurant-title { color: #556b2f; font-weight: 900; letter-spacing: 1px; }
+    #paymentSection { background-color: #f0f4ee; border-left: 5px solid #556b2f; display: none; padding: 15px; border-radius: 8px; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -23,24 +21,32 @@
     </div>
 
     <div id="formSection" style="display:none;">
-      <h3 class="text-center mb-1 restaurant-title" id="resTitle">讀取中...</h3>
+      <h3 class="text-center mb-1" id="resTitle" style="color: #556b2f; font-weight: 900;">載入中...</h3>
       <p class="text-center text-secondary small mb-4">造型中餐點餐系統</p>
       
       <form id="orderForm">
         <div class="mb-3">
           <label class="form-label fw-bold">您的姓名</label>
-          <input type="text" id="userName" class="form-control" placeholder="請輸入大名" required>
+          <input type="text" id="userName" class="form-control" placeholder="請輸入名字" required>
         </div>
         
         <div class="mb-3">
-          <label class="form-label fw-bold">選擇主餐</label>
+          <label class="form-label fw-bold">選擇品項</label>
           <select id="menuSelect" class="form-select" required></select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">數量</label>
+          <select id="quantitySelect" class="form-select">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option>
+          </select>
           <div id="priceDisplay" class="mt-2 text-end"></div>
         </div>
 
         <div class="mb-3">
           <label class="form-label fw-bold">備註</label>
-          <input type="text" id="note" class="form-control" placeholder="例如：半飯、不加蔥">
+          <input type="text" id="note" class="form-control" placeholder="加辣、飯少等">
         </div>
 
         <div class="mb-3 form-check">
@@ -49,7 +55,7 @@
         </div>
 
         <div id="paymentSection">
-          <label class="form-label small fw-bold">收受金額</label>
+          <label class="form-label small fw-bold">收取金額</label>
           <input type="number" id="receivedAmount" class="form-control mb-2" placeholder="輸入面額 (如 100, 500)">
           <div class="fw-bold" style="color: #8b4513;">找零：<span id="changeAmount">$0</span></div>
         </div>
@@ -61,7 +67,6 @@
 
     <div id="closedSection" class="text-center py-5" style="display:none;">
       <h2 style="color: #556b2f;">🛑 今日點餐已截止</h2>
-      <p class="text-secondary">開放時間：每日 07:00 - 08:45</p>
     </div>
   </div>
 
@@ -73,37 +78,42 @@
       fetch(GAS_URL).then(res => res.json()).then(data => {
         document.getElementById('loading').style.display = 'none';
         if (data.status !== "開啟") { document.getElementById('closedSection').style.display = 'block'; return; }
-        
         document.getElementById('formSection').style.display = 'block';
         document.getElementById('resTitle').innerText = "🍱 今日餐廳：" + data.restaurant;
-        
         menuStore = data.menu;
         const select = document.getElementById('menuSelect');
-        select.add(new Option("-- 請選擇便當 --", ""));
-        data.menu.forEach((row, i) => { if(row[0]){ let opt = new Option(row[0], row[0]); opt.dataset.idx = i; select.add(opt); } });
+        select.add(new Option("-- 請選擇 --", ""));
+        data.menu.forEach((row, i) => { if(row[0]) { let opt = new Option(row[0], row[0]); opt.dataset.idx = i; select.add(opt); } });
       });
     };
 
+    function updatePrice() {
+      const qty = parseInt(document.getElementById('quantitySelect').value);
+      const total = currentPrice * qty;
+      if(currentPrice > 0) {
+        document.getElementById('priceDisplay').innerHTML = `單價 $${currentPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
+      }
+      calcChange(total);
+    }
+
     document.getElementById('menuSelect').onchange = function() {
       const idx = this.options[this.selectedIndex].dataset.idx;
-      if (idx !== undefined) {
-        currentPrice = menuStore[idx][1];
-        document.getElementById('priceDisplay').innerHTML = `應付金額：<span class="price-tag">$${currentPrice}</span>`;
-        calcChange();
-      }
+      if (idx !== undefined) { currentPrice = menuStore[idx][1]; updatePrice(); }
     };
+
+    document.getElementById('quantitySelect').onchange = updatePrice;
 
     document.getElementById('paidCheck').onchange = function() {
       document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
     };
 
-    document.getElementById('receivedAmount').oninput = calcChange;
-
-    function calcChange() {
+    function calcChange(total) {
       const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
-      const change = received - currentPrice;
+      const change = received - (total || currentPrice * parseInt(document.getElementById('quantitySelect').value));
       document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
     }
+
+    document.getElementById('receivedAmount').oninput = () => updatePrice();
 
     document.getElementById('orderForm').onsubmit = function(e) {
       e.preventDefault();
@@ -116,6 +126,7 @@
           userName: document.getElementById('userName').value,
           item: document.getElementById('menuSelect').value,
           price: currentPrice,
+          quantity: document.getElementById('quantitySelect').value,
           note: document.getElementById('note').value,
           hasPaid: document.getElementById('paidCheck').checked,
           receivedAmount: document.getElementById('receivedAmount').value
