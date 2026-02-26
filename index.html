@@ -11,6 +11,7 @@
     .btn-submit { background-color: #556b2f; color: white; width: 100%; border-radius: 25px; border: none; padding: 12px; font-weight: bold; }
     .price-tag { color: #556b2f; font-weight: bold; font-size: 1.4rem; }
     #paymentSection { background-color: #f0f4ee; border-left: 5px solid #556b2f; display: none; padding: 15px; border-radius: 8px; margin-top:10px; }
+    .notice-box { background-color: #fff9db; border: 1px dashed #fab005; padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #856404; }
   </style>
 </head>
 <body>
@@ -43,7 +44,7 @@
 
         <div class="mb-3">
           <label class="form-label fw-bold">備註</label>
-          <input type="text" id="note" class="form-control" placeholder="飯少、半飯、...">
+          <input type="text" id="note" class="form-control" placeholder="飯少、加辣、或是寫「取消」...">
         </div>
 
         <div class="mb-3 form-check">
@@ -57,6 +58,12 @@
           <div class="fw-bold" style="color: #8b4513;">找零：<span id="changeAmount">$0</span></div>
         </div>
 
+        <div class="notice-box mt-4">
+          <strong>💡 貼心提醒：</strong><br>
+          如欲修改訂單，直接重新下單即可覆蓋舊單。<br>
+          <strong>取消訂單：</strong>請重新下單，備註寫「取消」或「不點了」。
+        </div>
+
         <button type="submit" id="submitBtn" class="btn btn-submit mt-3">確認下單</button>
       </form>
       <div id="msg" class="text-center mt-3 fw-bold text-success"></div>
@@ -68,6 +75,7 @@
   </div>
 
   <script>
+    // 請確認此處 URL 與您最新部署的 GAS 網址一致
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"; 
     let menuStore = [], currentUnitPrice = 0;
 
@@ -144,7 +152,3 @@
   </script>
 </body>
 </html>
-
-
-
-
