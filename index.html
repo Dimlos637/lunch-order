@@ -9,9 +9,11 @@
     body { background-color: #f4f7f4; padding: 20px; font-family: "Microsoft JhengHei", sans-serif; }
     .order-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; max-width: 500px; margin: auto; }
     .btn-submit { background-color: #556b2f; color: white; width: 100%; border-radius: 25px; border: none; padding: 12px; font-weight: bold; }
+    .btn-submit:disabled { background-color: #a0a0a0; }
     .price-tag { color: #556b2f; font-weight: bold; font-size: 1.4rem; }
     #paymentSection { background-color: #f0f4ee; border-left: 5px solid #556b2f; display: none; padding: 15px; border-radius: 8px; margin-top:10px; }
     .notice-box { background-color: #fff9db; border: 1px dashed #fab005; padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #856404; }
+    .warning-text { color: #d9534f; font-weight: bold; font-size: 0.9rem; display: none; }
   </style>
 </head>
 <body>
@@ -40,6 +42,7 @@
           <label class="form-label fw-bold">數量</label>
           <input type="number" id="quantityInput" class="form-control" value="1" min="1" required>
           <div id="priceDisplay" class="mt-2 text-end"></div>
+          <div id="qtyWarning" class="warning-text text-end mt-1">⚠️ 此品項單價含 0.5 元，數量請點選雙數</div>
         </div>
 
         <div class="mb-3">
@@ -61,25 +64,20 @@
         <div class="notice-box mt-4">
           <strong>💡 貼心提醒：</strong><br>
           如欲修改訂單，直接重新下單即可覆蓋舊單。<br>
-          <strong>取消訂單：</strong>請重新下單相同品項，並在備註寫「取消」或「不點了」。
+          <strong>取消訂單：</strong>請重新下單相同品項，並在備註寫「取消」。
         </div>
 
         <button type="submit" id="submitBtn" class="btn btn-submit mt-3">確認下單</button>
       </form>
-      <div id="msg" class="text-center mt-3 fw-bold text-success"></div>
+      <div id="msg" class="text-center mt-3 fw-bold"></div>
     </div>
 
     <div id="closedSection" class="text-center py-5" style="display:none;">
       <h2 style="color: #556b2f; font-weight: bold;">🛑 今日點餐已截止</h2>
-      <div class="mt-3 p-3 mx-auto" style="max-width: 300px; background-color: #fff5f5; border-radius: 15px; border: 1px solid #ffc9c9;">
-        <p class="mb-1 fw-bold" style="color: #c92a2a;">系統開放時間</p>
-        <p class="mb-0 fs-5" style="color: #c92a2a; letter-spacing: 1px;">07:00 ~ 08:45</p>
-      </div>
-      <p class="text-secondary mt-4 small">（僅限週一至週五上班日開放）</p>
+      <p class="text-secondary mt-4 small">系統開放時間：07:00 ~ 08:45</p>
     </div>
 
   <script>
-    // 請確認此處 URL 與您最新部署的 GAS 網址一致
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"; 
     let menuStore = [], currentUnitPrice = 0;
 
@@ -97,9 +95,21 @@
     };
 
     function updatePrice() {
-      let qty = parseInt(document.getElementById('quantityInput').value) || 1;
+      const qtyInput = document.getElementById('quantityInput');
+      let qty = parseInt(qtyInput.value) || 1;
       if (qty < 1) qty = 1;
+      
       const total = currentUnitPrice * qty;
+      const warning = document.getElementById('qtyWarning');
+      
+      // --- 新增：.5元防呆檢查顯示 ---
+      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+      // ----------------------------
+
       if(currentUnitPrice > 0) {
         document.getElementById('priceDisplay').innerHTML = `單價 $${currentUnitPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
       }
@@ -115,7 +125,6 @@
     };
 
     document.getElementById('quantityInput').oninput = updatePrice;
-
     document.getElementById('paidCheck').onchange = function() {
       document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
     };
@@ -131,8 +140,19 @@
 
     document.getElementById('orderForm').onsubmit = function(e) {
       e.preventDefault();
+      
+      // --- 新增：送出前終極攔截 ---
+      const qty = parseInt(document.getElementById('quantityInput').value);
+      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+        alert("⚠️ 數量錯誤：\n由於此品項單價有 0.5 元，為了方便收錢與找零，請務必點選「雙數」喔！");
+        return;
+      }
+      // ----------------------------
+
       const btn = document.getElementById('submitBtn');
+      const msg = document.getElementById('msg');
       btn.disabled = true; btn.innerText = "傳送中...";
+      msg.innerText = "";
       
       fetch(GAS_URL, {
         method: 'POST',
@@ -140,25 +160,27 @@
           userName: document.getElementById('userName').value,
           item: document.getElementById('menuSelect').value,
           price: currentUnitPrice,
-          quantity: document.getElementById('quantityInput').value,
+          quantity: qty,
           note: document.getElementById('note').value,
           hasPaid: document.getElementById('paidCheck').checked,
           receivedAmount: document.getElementById('receivedAmount').value
         })
       }).then(res => res.json()).then(res => {
-        document.getElementById('msg').innerText = res.result;
-        this.reset(); btn.disabled = false; btn.innerText = "確認下單";
-        document.getElementById('paymentSection').style.display = 'none';
-        document.getElementById('priceDisplay').innerText = "";
-        document.getElementById('quantityInput').value = 1;
+        msg.className = res.result.includes("失敗") ? "text-center mt-3 fw-bold text-danger" : "text-center mt-3 fw-bold text-success";
+        msg.innerText = res.result;
+        if (!res.result.includes("失敗")) {
+          this.reset();
+          document.getElementById('paymentSection').style.display = 'none';
+          document.getElementById('priceDisplay').innerText = "";
+          document.getElementById('quantityInput').value = 1;
+        }
+        btn.disabled = false; btn.innerText = "確認下單";
+      }).catch(err => {
+        msg.className = "text-center mt-3 fw-bold text-danger";
+        msg.innerText = "連線錯誤，請稍後再試。";
+        btn.disabled = false; btn.innerText = "確認下單";
       });
     };
   </script>
 </body>
 </html>
-
-
-
-
-
-
