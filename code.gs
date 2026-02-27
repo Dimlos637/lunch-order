@@ -1,8 +1,26 @@
+/**
+ * 訂餐系統完整腳本 (2026.02.28 嚴格括號版)
+ */
+
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const menuSheet = ss.getSheetByName('Menu');
-  const status = menuSheet.getRange('E2').getValue();
-  const restaurant = menuSheet.getRange('G2').getValue();
+  const day = new Date().getDay();
+  const statusRange = menuSheet.getRange('E2');
+  const restaurantRange = menuSheet.getRange('G2');
+  
+  const status = statusRange.getValue();
+  const restaurant = restaurantRange.getValue();
+  
+  // 邏輯：若 E2 不是「開啟」，且今天是週六(6)或週日(0)，則回傳關閉
+  if (status !== "開啟" && (day === 0 || day === 6)) {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "關閉", 
+      restaurant: "週末休息中", 
+      menu: [] 
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const menuData = getMenu();
   
   return ContentService.createTextOutput(JSON.stringify({ 
@@ -18,7 +36,7 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Orders');
     
-    // 0.5元防呆：單價含 .5 者，數量須為雙數
+    // 0.5元防呆
     const price = Number(data.price);
     const qty = Number(data.quantity);
     
@@ -28,6 +46,7 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 檢查重複訂單
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       const existingData = sheet.getRange(2, 2, lastRow - 1, 2).getValues();
@@ -38,6 +57,7 @@ function doPost(e) {
       }
     }
 
+    // 寫入資料
     sheet.appendRow([
       new Date(),
       "'" + data.userName, 
@@ -51,6 +71,7 @@ function doPost(e) {
     
     return ContentService.createTextOutput(JSON.stringify({ "result": "下單成功！" }))
       .setMimeType(ContentService.MimeType.JSON);
+
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ "result": "錯誤：" + err.message }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -61,21 +82,37 @@ function getMenu() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Menu');
   const data = sheet.getDataRange().getValues();
-  data.shift(); 
+  data.shift(); // 移除標題
   return data;
 }
 
 function archiveOnly() {
+  const day = new Date().getDay();
+  // 週末不歸檔
+  if (day === 0 || day === 6) {
+    return;
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName("Orders");
   const historySheet = ss.getSheetByName("History");
-  if (!historySheet) return;
+  
+  if (!historySheet) {
+    return;
+  }
+
   const lastRow = orderSheet.getLastRow();
-  if (lastRow < 2) return;
+  if (lastRow < 2) {
+    return;
+  }
   
   const data = orderSheet.getRange(2, 1, lastRow - 1, 8).getValues();
   const today = new Date().toLocaleDateString(); 
-  const historyData = data.map(row => [...row, today]);
+  
+  // 加上日期欄位
+  const historyData = data.map(function(row) {
+    return [...row, today];
+  });
   
   historySheet.getRange(historySheet.getLastRow() + 1, 1, historyData.length, 9).setValues(historyData);
   orderSheet.getRange(2, 1, lastRow - 1, 8).clearContent();
@@ -83,6 +120,7 @@ function archiveOnly() {
 
 function openSystemOnly() {
   const day = new Date().getDay(); 
+  // 僅週一至週五執行
   if (day >= 1 && day <= 5) {
     const menuSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu');
     menuSheet.getRange('E2').setValue('開啟');
@@ -97,9 +135,12 @@ function autoCloseSystem() {
 
 function createSpecificCloseTrigger() {
   const allTriggers = ScriptApp.getProjectTriggers();
-  allTriggers.forEach(t => { 
-    if(t.getHandlerFunction() === 'autoCloseSystem') ScriptApp.deleteTrigger(t); 
+  allTriggers.forEach(function(t) { 
+    if(t.getHandlerFunction() === 'autoCloseSystem') {
+      ScriptApp.deleteTrigger(t); 
+    }
   });
+  
   const today = new Date();
   const closeTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 45);
   ScriptApp.newTrigger('autoCloseSystem').timeBased().at(closeTime).create();
@@ -107,10 +148,12 @@ function createSpecificCloseTrigger() {
 
 function setupMainTrigger() {
   const allTriggers = ScriptApp.getProjectTriggers();
-  allTriggers.forEach(t => ScriptApp.deleteTrigger(t));
+  allTriggers.forEach(function(t) {
+    ScriptApp.deleteTrigger(t);
+  });
   
   ScriptApp.newTrigger('archiveOnly').timeBased().everyDays(1).atHour(17).create();
   ScriptApp.newTrigger('openSystemOnly').timeBased().everyDays(1).atHour(7).create();
   
-  SpreadsheetApp.getUi().alert("設定完成：早上 07:00 開啟，下午 17:00 歸檔。");
+  SpreadsheetApp.getUi().alert("設定完成：系統已重置，週一至週五自動運行。");
 }
