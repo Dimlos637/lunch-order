@@ -1,8 +1,3 @@
-/**
- * 訂餐系統完整腳本 (2026.02.26 下午維護版)
- * 包含：API 介面、一人多品項覆蓋、每日 17:00-18:00 自動存檔並開啟明天系統
- */
-
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const menuSheet = ss.getSheetByName('Menu');
@@ -23,6 +18,16 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Orders');
     
+    // 0.5元防呆：單價含 .5 者，數量須為雙數
+    const price = Number(data.price);
+    const qty = Number(data.quantity);
+    
+    if (price % 1 !== 0 && qty % 2 !== 0) {
+      return ContentService.createTextOutput(JSON.stringify({ 
+        "result": "下單失敗：單價為 " + price + " 元，數量請點「雙數」以利收費找零。" 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       const existingData = sheet.getRange(2, 2, lastRow - 1, 2).getValues();
@@ -37,8 +42,8 @@ function doPost(e) {
       new Date(),
       "'" + data.userName, 
       data.item,
-      Number(data.price),
-      Number(data.quantity),
+      price,
+      qty,
       data.hasPaid ? "是" : "否", 
       data.receivedAmount || 0, 
       data.note
@@ -60,14 +65,13 @@ function getMenu() {
   return data;
 }
 
-function archiveAndReset() {
+function archiveOnly() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const orderSheet = ss.getSheetByName("Orders");
   const historySheet = ss.getSheetByName("History");
-  
   if (!historySheet) return;
   const lastRow = orderSheet.getLastRow();
-  if (lastRow < 2) return; 
+  if (lastRow < 2) return;
   
   const data = orderSheet.getRange(2, 1, lastRow - 1, 8).getValues();
   const today = new Date().toLocaleDateString(); 
@@ -77,11 +81,9 @@ function archiveAndReset() {
   orderSheet.getRange(2, 1, lastRow - 1, 8).clearContent();
 }
 
-function dailySystemMaintenance() {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); 
-  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-    archiveAndReset();
+function openSystemOnly() {
+  const day = new Date().getDay(); 
+  if (day >= 1 && day <= 5) {
     const menuSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu');
     menuSheet.getRange('E2').setValue('開啟');
     createSpecificCloseTrigger();
@@ -99,14 +101,16 @@ function createSpecificCloseTrigger() {
     if(t.getHandlerFunction() === 'autoCloseSystem') ScriptApp.deleteTrigger(t); 
   });
   const today = new Date();
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-  const closeTime = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 8, 45);
+  const closeTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 45);
   ScriptApp.newTrigger('autoCloseSystem').timeBased().at(closeTime).create();
 }
 
 function setupMainTrigger() {
   const allTriggers = ScriptApp.getProjectTriggers();
   allTriggers.forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('dailySystemMaintenance').timeBased().everyDays(1).atHour(17).create();
-  SpreadsheetApp.getUi().alert("設定成功！系統將在每日 17:00-18:00 自動存檔並開啟隔天點餐。");
+  
+  ScriptApp.newTrigger('archiveOnly').timeBased().everyDays(1).atHour(17).create();
+  ScriptApp.newTrigger('openSystemOnly').timeBased().everyDays(1).atHour(7).create();
+  
+  SpreadsheetApp.getUi().alert("設定完成：早上 07:00 開啟，下午 17:00 歸檔。");
 }
