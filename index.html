@@ -83,4 +83,110 @@
   </div>
 
   <script>
-    const GAS_URL = "
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"; 
+    let menuStore = [], currentUnitPrice = 0;
+
+    window.onload = () => {
+      fetch(GAS_URL).then(res => res.json()).then(data => {
+        document.getElementById('loading').style.display = 'none';
+        // 若狀態不是開啟，或正好是週末休息，顯示截止畫面
+        if (data.status !== "開啟") { 
+          document.getElementById('closedSection').style.display = 'block'; 
+          return; 
+        }
+        document.getElementById('formSection').style.display = 'block';
+        document.getElementById('resTitle').innerText = "🍱 今日餐廳：" + data.restaurant;
+        menuStore = data.menu;
+        const select = document.getElementById('menuSelect');
+        select.add(new Option("-- 請選擇 --", ""));
+        data.menu.forEach((row, i) => { if(row[0]) { let opt = new Option(row[0], row[0]); opt.dataset.idx = i; select.add(opt); } });
+      });
+    };
+
+    function updatePrice() {
+      const qtyInput = document.getElementById('quantityInput');
+      let qty = parseInt(qtyInput.value) || 1;
+      if (qty < 1) qty = 1;
+      
+      const total = currentUnitPrice * qty;
+      const warning = document.getElementById('qtyWarning');
+      
+      // 檢查 0.5 元防呆
+      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+
+      if(currentUnitPrice > 0) {
+        document.getElementById('priceDisplay').innerHTML = `單價 $${currentUnitPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
+      }
+      calcChange(total);
+    }
+
+    document.getElementById('menuSelect').onchange = function() {
+      const idx = this.options[this.selectedIndex].dataset.idx;
+      if (idx !== undefined) { 
+        currentUnitPrice = menuStore[idx][1]; 
+        updatePrice(); 
+      }
+    };
+
+    document.getElementById('quantityInput').oninput = updatePrice;
+    document.getElementById('paidCheck').onchange = function() {
+      document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
+    };
+
+    function calcChange(total) {
+      const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
+      const targetTotal = total || (currentUnitPrice * (parseInt(document.getElementById('quantityInput').value) || 1));
+      const change = received - targetTotal;
+      document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
+    }
+
+    document.getElementById('receivedAmount').oninput = () => updatePrice();
+
+    document.getElementById('orderForm').onsubmit = function(e) {
+      e.preventDefault();
+      
+      const qty = parseInt(document.getElementById('quantityInput').value);
+      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+        alert("⚠️ 數量錯誤：\n由於此品項單價有 0.5 元，為了方便收錢與找零，請務必點選「雙數」喔！");
+        return;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      const msg = document.getElementById('msg');
+      btn.disabled = true; btn.innerText = "傳送中...";
+      msg.innerText = "";
+      
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          userName: document.getElementById('userName').value,
+          item: document.getElementById('menuSelect').value,
+          price: currentUnitPrice,
+          quantity: qty,
+          note: document.getElementById('note').value,
+          hasPaid: document.getElementById('paidCheck').checked,
+          receivedAmount: document.getElementById('receivedAmount').value
+        })
+      }).then(res => res.json()).then(res => {
+        msg.className = res.result.includes("失敗") ? "text-center mt-3 fw-bold text-danger" : "text-center mt-3 fw-bold text-success";
+        msg.innerText = res.result;
+        if (!res.result.includes("失敗")) {
+          this.reset();
+          document.getElementById('paymentSection').style.display = 'none';
+          document.getElementById('priceDisplay').innerText = "";
+          document.getElementById('quantityInput').value = 1;
+        }
+        btn.disabled = false; btn.innerText = "確認下單";
+      }).catch(err => {
+        msg.className = "text-center mt-3 fw-bold text-danger";
+        msg.innerText = "連線錯誤，請稍後再試。";
+        btn.disabled = false; btn.innerText = "確認下單";
+      });
+    };
+  </script>
+</body>
+</html>
