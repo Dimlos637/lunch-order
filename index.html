@@ -1,193 +1,240 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>造型中餐點餐系統</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #f4f7f4; padding: 20px; font-family: "Microsoft JhengHei", sans-serif; }
-    .order-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 30px; max-width: 500px; margin: auto; }
-    .btn-submit { background-color: #556b2f; color: white; width: 100%; border-radius: 25px; border: none; padding: 12px; font-weight: bold; }
-    .btn-submit:disabled { background-color: #a0a0a0; }
-    .price-tag { color: #556b2f; font-weight: bold; font-size: 1.4rem; }
-    #paymentSection { background-color: #f0f4ee; border-left: 5px solid #556b2f; display: none; padding: 15px; border-radius: 8px; margin-top:10px; }
-    .notice-box { background-color: #fff9db; border: 1px dashed #fab005; padding: 10px; border-radius: 8px; font-size: 0.9rem; color: #856404; }
-    .warning-text { color: #d9534f; font-weight: bold; font-size: 0.9rem; display: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>造型中餐點餐系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --main-green: #556b2f; --bg-color: #f4f7f4; --accent-brown: #8b4513; }
+        body { background-color: var(--bg-color); padding: 20px; font-family: "Microsoft JhengHei", sans-serif; }
+        
+        /* 提升質感後的卡片樣式 */
+        .order-card { 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
+            padding: 30px; 
+            max-width: 500px; 
+            margin: auto; 
+            border-top: 10px solid var(--main-green);
+            transition: all 0.5s ease;
+        }
+
+        /* 按鈕樣式 */
+        .btn-submit { background-color: var(--main-green); color: white; width: 100%; border-radius: 30px; border: none; padding: 12px; font-weight: bold; transition: 0.3s; }
+        .btn-submit:hover { background-color: #3e4f22; transform: translateY(-2px); }
+        .btn-submit:disabled { background-color: #a0a0a0; }
+        
+        /* 撤回按鈕樣式 */
+        .btn-withdraw { background-color: transparent; color: #666; width: 100%; border-radius: 30px; padding: 8px; font-size: 0.9rem; border: 1px solid #ccc; margin-top: 15px; transition: 0.3s; }
+        .btn-withdraw:hover { background-color: #fff0f0; color: #c92a2a; border-color: #c92a2a; }
+
+        .price-tag { color: var(--main-green); font-weight: bold; font-size: 1.4rem; }
+        #paymentSection { background-color: #f0f4ee; border-left: 5px solid var(--main-green); display: none; padding: 15px; border-radius: 8px; margin-top:15px; }
+        .notice-box { background-color: #fff9db; border: 1px dashed #fab005; padding: 10px; border-radius: 8px; font-size: 0.85rem; color: #856404; }
+        .warning-text { color: #d9534f; font-weight: bold; font-size: 0.85rem; display: none; }
+        .form-label { font-weight: bold; color: #333; }
+    </style>
 </head>
 <body>
-  <div class="container order-card">
+
+<div class="container">
     <div id="loading" class="text-center py-5">
-      <div class="spinner-border text-success"></div>
-      <p class="mt-2 text-secondary">正在同步今日菜單...</p>
+        <div class="spinner-border text-success"></div>
+        <p class="mt-2 text-secondary">正在同步今日菜單...</p>
     </div>
 
-    <div id="formSection" style="display:none;">
-      <h3 class="text-center mb-1" id="resTitle" style="color: #556b2f; font-weight: 900;">載入中...</h3>
-      <p class="text-center text-secondary small mb-4">造型中餐點餐系統</p>
-      
-      <form id="orderForm">
-        <div class="mb-3">
-          <label class="form-label fw-bold">您的姓名</label>
-          <input type="text" id="userName" class="form-control" placeholder="請輸入名字" required>
-        </div>
+    <div id="formSection" class="order-card" style="display:none;">
+        <h3 class="text-center mb-1" id="resTitle" style="color: var(--main-green); font-weight: 900;">載入中...</h3>
+        <p class="text-center text-secondary small mb-4">造型中餐點餐系統</p>
         
-        <div class="mb-3">
-          <label class="form-label fw-bold">選擇品項</label>
-          <select id="menuSelect" class="form-select" required></select>
-        </div>
+        <form id="orderForm">
+            <div class="mb-3">
+                <label class="form-label">您的姓名</label>
+                <input type="text" id="userName" class="form-control" placeholder="請輸入名字" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">選擇品項</label>
+                <select id="menuSelect" class="form-select" required></select>
+            </div>
 
-        <div class="mb-3">
-          <label class="form-label fw-bold">數量</label>
-          <input type="number" id="quantityInput" class="form-control" value="1" min="1" required>
-          <div id="priceDisplay" class="mt-2 text-end"></div>
-          <div id="qtyWarning" class="warning-text text-end mt-1">⚠️ 此品項單價含 0.5 元，數量請點選雙數</div>
-        </div>
+            <div class="mb-3">
+                <label class="form-label">數量</label>
+                <input type="number" id="quantityInput" class="form-control" value="1" min="1" required>
+                <div id="priceDisplay" class="mt-2 text-end"></div>
+                <div id="qtyWarning" class="warning-text text-end mt-1">⚠️ 此品項單價含 0.5 元，數量請點選「雙數」</div>
+            </div>
 
-        <div class="mb-3">
-          <label class="form-label fw-bold">備註</label>
-          <input type="text" id="note" class="form-control" placeholder="飯少、半飯、或是寫「取消」...">
-        </div>
+            <div class="mb-3">
+                <label class="form-label">備註</label>
+                <input type="text" id="note" class="form-control" placeholder="飯少、不要辣、或是加點...">
+            </div>
 
-        <div class="mb-3 form-check">
-          <input type="checkbox" class="form-check-input" id="paidCheck">
-          <label class="form-check-label fw-bold" for="paidCheck" style="color: #556b2f;"> 我已現場繳費 </label>
-        </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="paidCheck">
+                <label class="form-check-label fw-bold" for="paidCheck" style="color: var(--main-green);"> 我已現場繳費 </label>
+            </div>
 
-        <div id="paymentSection">
-          <label class="form-label small fw-bold">收取金額</label>
-          <input type="number" id="receivedAmount" class="form-control mb-2" placeholder="輸入面額 (如 100, 500)">
-          <div class="fw-bold" style="color: #8b4513;">找零：<span id="changeAmount">$0</span></div>
-        </div>
+            <div id="paymentSection">
+                <label class="form-label small">收取金額</label>
+                <input type="number" id="receivedAmount" class="form-control mb-2" placeholder="請輸入面額">
+                <div class="fw-bold text-end" style="color: var(--accent-brown);">找零：<span id="changeAmount">$0</span></div>
+            </div>
 
-        <div class="notice-box mt-4">
-          <strong>💡 貼心提醒：</strong><br>
-          如欲修改訂單，直接重新下單即可覆蓋舊單。<br>
-          <strong>取消訂單：</strong>請重新下單相同品項，並在備註寫「取消」。
-        </div>
+            <div class="notice-box mt-4">
+                <strong>💡 提醒：</strong> 如欲修改，直接重新下單即可覆蓋舊單。若要取消，請輸入姓名後點擊下方的「撤回訂單」。
+            </div>
 
-        <button type="submit" id="submitBtn" class="btn btn-submit mt-3">確認下單</button>
-      </form>
-      <div id="msg" class="text-center mt-3 fw-bold"></div>
+            <button type="submit" id="submitBtn" class="btn btn-submit mt-4">確認下單</button>
+            <button type="button" id="withdrawBtn" class="btn btn-withdraw">🔙 撤回我的最後一筆訂單</button>
+        </form>
+        <div id="msg" class="text-center mt-3 fw-bold"></div>
     </div>
 
-    <div id="closedSection" class="text-center py-5" style="display:none;">
-      <h2 style="color: #556b2f; font-weight: bold;">🛑 今日點餐已截止</h2>
-      <div class="mt-3 p-3 mx-auto" style="max-width: 320px; background-color: #fff5f5; border-radius: 15px; border: 1px solid #ffc9c9;">
-        <p class="mb-1 fw-bold" style="color: #c92a2a;">系統開放時間</p>
-        <p class="mb-0 fs-6" style="color: #c92a2a; letter-spacing: 1px;">週一 ~ 週五 07:00 ~ 08:45</p>
-      </div>
-      <p class="text-secondary mt-4 small">（國定假日及週末不開放點餐）</p>
+    <div id="closedSection" class="order-card text-center py-5" style="display:none;">
+        <h2 style="color: var(--main-green); font-weight: bold;">🛑 今日點餐已截止</h2>
+        <div class="mt-3 p-3 mx-auto" style="max-width: 320px; background-color: #fff5f5; border-radius: 15px; border: 1px solid #ffc9c9;">
+            <p class="mb-1 fw-bold" style="color: #c92a2a;">系統開放時間</p>
+            <p class="mb-0 fs-6" style="color: #c92a2a; letter-spacing: 1px;">週一 ~ 週五 07:00 ~ 08:45</p>
+        </div>
+        <p class="text-secondary mt-4 small">（國定假日及週末不開放點餐）</p>
     </div>
-  </div>
+</div>
 
-  <script>
+<script>
+    // --- ⚠️ 重要：請替換成你的 GAS 網址 ⚠️ ---
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"; 
+    
     let menuStore = [], currentUnitPrice = 0;
 
+    // 頁面啟動載入選單
     window.onload = () => {
-      fetch(GAS_URL).then(res => res.json()).then(data => {
-        document.getElementById('loading').style.display = 'none';
-        // 若狀態不是開啟，或正好是週末休息，顯示截止畫面
-        if (data.status !== "開啟") { 
-          document.getElementById('closedSection').style.display = 'block'; 
-          return; 
-        }
-        document.getElementById('formSection').style.display = 'block';
-        document.getElementById('resTitle').innerText = "🍱 今日餐廳：" + data.restaurant;
-        menuStore = data.menu;
-        const select = document.getElementById('menuSelect');
-        select.add(new Option("-- 請選擇 --", ""));
-        data.menu.forEach((row, i) => { if(row[0]) { let opt = new Option(row[0], row[0]); opt.dataset.idx = i; select.add(opt); } });
-      });
+        fetch(GAS_URL).then(res => res.json()).then(data => {
+            document.getElementById('loading').style.display = 'none';
+            if (data.status !== "開啟") { document.getElementById('closedSection').style.display = 'block'; return; }
+            document.getElementById('formSection').style.display = 'block';
+            document.getElementById('resTitle').innerText = "🍱 今日餐廳：" + data.restaurant;
+            
+            menuStore = data.menu;
+            const select = document.getElementById('menuSelect');
+            select.add(new Option("-- 請選擇品項 --", ""));
+            data.menu.forEach((row, i) => { 
+                if(row[0]) { 
+                    let opt = new Option(`${row[0]} ($${row[1]})`, row[0]); 
+                    opt.dataset.idx = i; 
+                    select.add(opt); 
+                } 
+            });
+        });
     };
 
+    // 更新價格與 0.5 元防呆檢查
     function updatePrice() {
-      const qtyInput = document.getElementById('quantityInput');
-      let qty = parseInt(qtyInput.value) || 1;
-      if (qty < 1) qty = 1;
-      
-      const total = currentUnitPrice * qty;
-      const warning = document.getElementById('qtyWarning');
-      
-      // 檢查 0.5 元防呆
-      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
-        warning.style.display = 'block';
-      } else {
-        warning.style.display = 'none';
-      }
+        const qtyInput = document.getElementById('quantityInput');
+        let qty = parseInt(qtyInput.value) || 1;
+        if (qty < 1) qty = 1;
+        
+        const total = currentUnitPrice * qty;
+        const warning = document.getElementById('qtyWarning');
+        
+        // 檢查 0.5 元防呆：單價含 0.5 且數量為奇數時顯示警告
+        if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+            warning.style.display = 'block';
+        } else {
+            warning.style.display = 'none';
+        }
 
-      if(currentUnitPrice > 0) {
-        document.getElementById('priceDisplay').innerHTML = `單價 $${currentUnitPrice} x ${qty} = 總計 <span class="price-tag">$${total}</span>`;
-      }
-      calcChange(total);
+        if(currentUnitPrice > 0) {
+            document.getElementById('priceDisplay').innerHTML = `總計 <span class="price-tag">$${total}</span>`;
+        }
+        calcChange(total);
     }
 
     document.getElementById('menuSelect').onchange = function() {
-      const idx = this.options[this.selectedIndex].dataset.idx;
-      if (idx !== undefined) { 
-        currentUnitPrice = menuStore[idx][1]; 
-        updatePrice(); 
-      }
+        const idx = this.options[this.selectedIndex].dataset.idx;
+        if (idx !== undefined) { 
+            currentUnitPrice = menuStore[idx][1]; 
+            updatePrice(); 
+        }
     };
 
     document.getElementById('quantityInput').oninput = updatePrice;
+    document.getElementById('receivedAmount').oninput = updatePrice;
     document.getElementById('paidCheck').onchange = function() {
-      document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('paymentSection').style.display = this.checked ? 'block' : 'none';
     };
 
     function calcChange(total) {
-      const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
-      const targetTotal = total || (currentUnitPrice * (parseInt(document.getElementById('quantityInput').value) || 1));
-      const change = received - targetTotal;
-      document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
+        const received = parseFloat(document.getElementById('receivedAmount').value) || 0;
+        const change = received - total;
+        document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
     }
 
-    document.getElementById('receivedAmount').oninput = () => updatePrice();
-
+    // --- 提交訂單邏輯 ---
     document.getElementById('orderForm').onsubmit = function(e) {
-      e.preventDefault();
-      
-      const qty = parseInt(document.getElementById('quantityInput').value);
-      if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
-        alert("⚠️ 數量錯誤：\n由於此品項單價有 0.5 元，為了方便收錢與找零，請務必點選「雙數」喔！");
-        return;
-      }
-
-      const btn = document.getElementById('submitBtn');
-      const msg = document.getElementById('msg');
-      btn.disabled = true; btn.innerText = "傳送中...";
-      msg.innerText = "";
-      
-      fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          userName: document.getElementById('userName').value,
-          item: document.getElementById('menuSelect').value,
-          price: currentUnitPrice,
-          quantity: qty,
-          note: document.getElementById('note').value,
-          hasPaid: document.getElementById('paidCheck').checked,
-          receivedAmount: document.getElementById('receivedAmount').value
-        })
-      }).then(res => res.json()).then(res => {
-        msg.className = res.result.includes("失敗") ? "text-center mt-3 fw-bold text-danger" : "text-center mt-3 fw-bold text-success";
-        msg.innerText = res.result;
-        if (!res.result.includes("失敗")) {
-          this.reset();
-          document.getElementById('paymentSection').style.display = 'none';
-          document.getElementById('priceDisplay').innerText = "";
-          document.getElementById('quantityInput').value = 1;
+        e.preventDefault();
+        
+        const qty = parseInt(document.getElementById('quantityInput').value);
+        if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
+            alert("⚠️ 數量錯誤：單價有 0.5 元，請點選「雙數」以便結帳收費。");
+            return;
         }
-        btn.disabled = false; btn.innerText = "確認下單";
-      }).catch(err => {
-        msg.className = "text-center mt-3 fw-bold text-danger";
-        msg.innerText = "連線錯誤，請稍後再試。";
-        btn.disabled = false; btn.innerText = "確認下單";
-      });
+
+        const btn = document.getElementById('submitBtn');
+        const msg = document.getElementById('msg');
+        btn.disabled = true; btn.innerText = "下單傳送中...";
+        
+        fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                userName: document.getElementById('userName').value,
+                item: document.getElementById('menuSelect').value,
+                price: currentUnitPrice,
+                quantity: qty,
+                note: document.getElementById('note').value,
+                hasPaid: document.getElementById('paidCheck').checked,
+                receivedAmount: document.getElementById('receivedAmount').value
+            })
+        }).then(res => res.json()).then(res => {
+            msg.className = res.result.includes("失敗") ? "text-center mt-3 fw-bold text-danger" : "text-center mt-3 fw-bold text-success";
+            msg.innerText = res.result;
+            if (!res.result.includes("失敗")) {
+                this.reset();
+                document.getElementById('paymentSection').style.display = 'none';
+                document.getElementById('priceDisplay').innerText = "";
+                document.getElementById('quantityInput').value = 1;
+            }
+            btn.disabled = false; btn.innerText = "確認下單";
+            setTimeout(() => { msg.innerText = ""; }, 5000);
+        }).catch(err => {
+            msg.innerText = "連線失敗，請稍後再試。";
+            btn.disabled = false; btn.innerText = "確認下單";
+        });
     };
-  </script>
+
+    // --- 🔙 撤回訂單邏輯 ---
+    document.getElementById('withdrawBtn').onclick = function() {
+        const name = document.getElementById('userName').value.trim();
+        if (!name) { alert("請先輸入您的姓名，以便系統查找訂單。"); return; }
+        if (!confirm("確定要撤回 " + name + " 的最後一筆訂單嗎？")) return;
+        
+        const btn = this;
+        btn.disabled = true; btn.innerText = "正在撤回...";
+        
+        fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "delete", userName: name })
+        })
+        .then(res => res.json()).then(res => {
+            alert(res.result);
+            btn.disabled = false; btn.innerText = "🔙 撤回我的最後一筆訂單";
+        }).catch(err => {
+            alert("撤回失敗，請稍後再試。");
+            btn.disabled = false; btn.innerText = "🔙 撤回我的最後一筆訂單";
+        });
+    };
+</script>
 </body>
 </html>
-
