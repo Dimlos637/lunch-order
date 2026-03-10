@@ -5,3 +5,5 @@
 2026.02.27 更新：增加0.5元品項點餐需要雙數提醒
 
 2026.03.01 index code_GAS code backup to GitHub.
+
+2026.03.10 使用 Google Apps Script 作為後端，並透過 Script Properties 妥善保護 API Key.
