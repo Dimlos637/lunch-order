@@ -1,9 +1,11 @@
 /**
- * 造型中餐點餐系統 - Discord 彩色卡片版 (2026.03.01)
+ * 造型中餐點餐系統 - GitHub 安全強化版 (2026.03.10)
+ * 功能：自動化點餐、Discord 彩色卡片、0.5元防呆、隱私資訊分離
  */
 
 // --- 0. 設定區 ---
-const LUNCH_WEBHOOK_URL = "https://discord.com/api/webhooks/1477469254625525972/kJuKA9eWIuCGiKFV5hSzPaeZYS4qEnZJKvEYLna-dLVVb1razLi5qR3R80ddJSQ2D8W-";
+// 🔒 安全強化：網址已移至「專案設定 > 指令碼屬性」中的 LUNCH_WEBHOOK
+const LUNCH_WEBHOOK_URL = PropertiesService.getScriptProperties().getProperty('LUNCH_WEBHOOK');
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -19,16 +21,18 @@ function onOpen() {
 
 /**
  * 核心通知函式：發送彩色卡片
- * @param {Object} embedData 卡片內容物件
  */
 function sendDiscordEmbed(embedData) {
-  if (!LUNCH_WEBHOOK_URL || LUNCH_WEBHOOK_URL.indexOf("http") === -1) return;
+  if (!LUNCH_WEBHOOK_URL || LUNCH_WEBHOOK_URL.indexOf("http") === -1) {
+    console.error("找不到 LUNCH_WEBHOOK 屬性，請在專案設定中新增。");
+    return;
+  }
   
   const payload = {
     "embeds": [{
       "title": embedData.title,
       "description": embedData.description || "",
-      "color": embedData.color || 3066993, // 預設綠色
+      "color": embedData.color || 3066993, 
       "fields": embedData.fields || [],
       "footer": { "text": "⌚ 時間：" + new Date().toLocaleString() }
     }]
@@ -47,7 +51,7 @@ function sendDiscordEmbed(embedData) {
   }
 }
 
-// --- 1. 網頁 API ---
+// --- 1. 網頁 API (doGet) ---
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const menuSheet = ss.getSheetByName('Menu');
@@ -62,7 +66,7 @@ function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({ status: status, restaurant: restaurant, menu: menuData })).setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- 2. 訂單處理 ---
+// --- 2. 訂單處理 (doPost) ---
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -80,7 +84,7 @@ function doPost(e) {
           
           sendDiscordEmbed({
             "title": "🔙 【午餐撤回通知】",
-            "color": 15158332, // 紅色
+            "color": 15158332, 
             "description": "有一份思念已被撤回...",
             "fields": [
               { "name": "👤 姓名", "value": userName, "inline": true },
@@ -113,10 +117,9 @@ function doPost(e) {
 
     sheet.appendRow([new Date(), "'" + data.userName, data.item, price, qty, data.hasPaid ? "是" : "否", data.receivedAmount || 0, data.note]);
     
-    // 🚀 傳送彩色卡片通知
     sendDiscordEmbed({
       "title": "🍱 【午餐新訂單】",
-      "color": 3066993, // 綠色
+      "color": 3066993,
       "fields": [
         { "name": "👤 訂購人", "value": data.userName, "inline": true },
         { "name": "🍽️ 品項", "value": data.item + " x " + qty, "inline": true },
@@ -145,7 +148,7 @@ function manualOpen() {
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu').getRange('E2').setValue('開啟');
   sendDiscordEmbed({
     "title": "📢 【午餐系統手動啟動】",
-    "color": 3447003, // 藍色
+    "color": 3447003,
     "description": "今日店家：**" + restaurant + "**\n大家可以開始點餐囉！"
   });
 }
@@ -154,7 +157,7 @@ function manualClose() {
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu').getRange('E2').setValue('關閉');
   sendDiscordEmbed({
     "title": "🛑 【午餐系統手動截止】",
-    "color": 15105570, // 橘色
+    "color": 15105570,
     "description": "今日點餐已關閉，準備訂餐去囉～"
   });
 }
