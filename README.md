@@ -1,6 +1,6 @@
 # lunch-order
 🍱 辦公室自動化點餐系統：中餐與飲料雙系統 (GAS 版)
-這是一套基於 Google Apps Script (GAS)、Google Sheets 與 Discord Webhook 開發的自動化點餐解決方案。包含「造型中餐」與「命運之雷飲料」兩大系統。
+這是一套基於 Google Apps Script (GAS)、Google Sheets 與 Discord Webhook 開發的自動化點餐解決方案。包含「中餐」與「飲料」兩大系統。
 
 🚀 系統亮點
 安全防護：核心 Webhook 網址透過 Script Properties 加密，代碼上傳 GitHub 無洩漏風險。
