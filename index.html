@@ -86,20 +86,13 @@
 </div>
 
 <script>
-    // 🔗 這裡請貼上你在 GAS 點擊「部署」後取得的 Web App URL
     const CONFIG = {
-        GAS_API: "你的新部署網址貼在這裡"
+        GAS_API: "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"
     };
 
     let menuStore = [], currentUnitPrice = 0;
 
-    // 初始化：取得菜單與狀態
     window.onload = () => {
-        if (CONFIG.GAS_API === "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec") {
-            document.getElementById('loading').innerHTML = '<p class="text-danger">尚未設定 GAS_API 網址！</p>';
-            return;
-        }
-
         fetch(CONFIG.GAS_API)
             .then(res => res.json())
             .then(data => {
@@ -123,16 +116,14 @@
                 });
             })
             .catch(() => {
-                document.getElementById('loading').innerHTML = '<p class="text-danger">系統連線失敗。</p>';
+                document.getElementById('loading').innerHTML = '<p class="text-danger">系統連線失敗。請確認 GAS 部署網址是否正確並設為「所有人」存取。</p>';
             });
     };
 
-    // 計算金額與防呆檢查
     function updateUI() {
         const qty = parseInt(document.getElementById('qtyInput').value) || 1;
         const total = currentUnitPrice * qty;
         
-        // 0.5 元雙數防呆
         const warning = document.getElementById('qtyWarning');
         if (currentUnitPrice % 1 !== 0 && qty % 2 !== 0) {
             warning.style.display = 'block';
@@ -158,7 +149,6 @@
     document.getElementById('receivedAmt').oninput = updateUI;
     document.getElementById('paidCheck').onchange = updateUI;
 
-    // 送出訂單
     document.getElementById('orderForm').onsubmit = function(e) {
         e.preventDefault();
         const qty = parseInt(document.getElementById('qtyInput').value);
@@ -195,7 +185,6 @@
         });
     };
 
-    // 撤回訂單
     document.getElementById('withdrawBtn').onclick = function() {
         const name = document.getElementById('userName').value.trim();
         if (!name) { alert("請輸入姓名以執行撤回。"); return; }
