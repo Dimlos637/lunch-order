@@ -1,12 +1,15 @@
 /**
- * 造型中餐點餐系統 - GitHub 安全強化版 (2026.03.10)
- * 功能：自動化點餐、Discord 彩色卡片、0.5元防呆、隱私資訊分離
+ * 造型中餐點餐系統 - 最終安全強化版
+ * 更新日期：2026.03.16
+ * ⚠ 注意：請確保已在「專案設定」中新增 LUNCH_WEBHOOK 屬性
  */
 
-// --- 0. 設定區 ---
-// 🔒 安全強化：網址已移至「專案設定 > 指令碼屬性」中的 LUNCH_WEBHOOK
+// 🔒 從系統屬性讀取 Webhook 網址，避免程式碼外洩風險
 const LUNCH_WEBHOOK_URL = PropertiesService.getScriptProperties().getProperty('LUNCH_WEBHOOK');
 
+/**
+ * 建立試算表選單
+ */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🍱 中餐系統管理')
@@ -20,11 +23,11 @@ function onOpen() {
 }
 
 /**
- * 核心通知函式：發送彩色卡片
+ * 發送 Discord 彩色卡片核心函式
  */
 function sendDiscordEmbed(embedData) {
   if (!LUNCH_WEBHOOK_URL || LUNCH_WEBHOOK_URL.indexOf("http") === -1) {
-    console.error("找不到 LUNCH_WEBHOOK 屬性，請在專案設定中新增。");
+    Logger.log("❌ 錯誤：找不到有效的 LUNCH_WEBHOOK。請檢查專案設定。");
     return;
   }
   
@@ -34,46 +37,50 @@ function sendDiscordEmbed(embedData) {
       "description": embedData.description || "",
       "color": embedData.color || 3066993, 
       "fields": embedData.fields || [],
-      "footer": { "text": "⌚ 時間：" + new Date().toLocaleString() }
+      "footer": { "text": "⌚ 伺服器時間：" + new Date().toLocaleString() }
     }]
   };
   
   const options = {
     "method": "post",
     "contentType": "application/json",
-    "payload": JSON.stringify(payload)
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true // 允許查看詳細錯誤
   };
   
   try {
-    UrlFetchApp.fetch(LUNCH_WEBHOOK_URL, options);
+    const response = UrlFetchApp.fetch(LUNCH_WEBHOOK_URL, options);
+    Logger.log("Discord 回傳結果：" + response.getContentText());
   } catch (e) {
-    console.error("Discord 通知失敗：" + e.toString());
+    Logger.log("Discord 通知失敗：" + e.toString());
   }
 }
 
-// --- 1. 網頁 API (doGet) ---
+// --- 1. 前端連線 API (doGet) ---
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const menuSheet = ss.getSheetByName('Menu');
   const day = new Date().getDay();
-  const status = menuSheet.getRange('E2').getValue();
-  const restaurant = menuSheet.getRange('G2').getValue();
+  const status = menuSheet.getRange('E2').getValue().toString().trim();
+  const restaurant = menuSheet.getRange('G2').getValue().toString().trim();
   
+  // 週末自動休息判定
   if (status !== "開啟" && (day === 0 || day === 6)) {
     return ContentService.createTextOutput(JSON.stringify({ status: "關閉", restaurant: "週末休息中", menu: [] })).setMimeType(ContentService.MimeType.JSON);
   }
+  
   const menuData = getMenu();
   return ContentService.createTextOutput(JSON.stringify({ status: status, restaurant: restaurant, menu: menuData })).setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- 2. 訂單處理 (doPost) ---
+// --- 2. 接收下單/撤回 API (doPost) ---
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Orders');
     
-    // --- A. 撤回邏輯 ---
+    // --- 撤回模式 ---
     if (data.action === "delete") {
       const rows = sheet.getDataRange().getValues();
       const userName = data.userName.trim();
@@ -85,26 +92,28 @@ function doPost(e) {
           sendDiscordEmbed({
             "title": "🔙 【午餐撤回通知】",
             "color": 15158332, 
-            "description": "有一份思念已被撤回...",
+            "description": "訂單已被使用者撤回。",
             "fields": [
               { "name": "👤 姓名", "value": userName, "inline": true },
               { "name": "🍽️ 品項", "value": deletedItem, "inline": true }
             ]
           });
-          
-          return ContentService.createTextOutput(JSON.stringify({ "result": "已成功撤回您的最後一筆訂單！" })).setMimeType(ContentService.MimeType.JSON);
+          return ContentService.createTextOutput(JSON.stringify({ "result": "已成功撤回訂單！" })).setMimeType(ContentService.MimeType.JSON);
         }
       }
-      return ContentService.createTextOutput(JSON.stringify({ "result": "找不到訂單。" })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ "result": "找不到您的訂單。" })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // --- B. 新增訂單邏輯 ---
+    // --- 下單模式 ---
     const price = Number(data.price);
     const qty = Number(data.quantity);
+    
+    // 0.5 元防呆
     if (price % 1 !== 0 && qty % 2 !== 0) {
-      return ContentService.createTextOutput(JSON.stringify({ "result": "下單失敗：單價含 0.5 元，數量請點「雙數」。" })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ "result": "下單失敗：0.5元品項請點雙數。" })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 檢查並覆蓋同人同品項的舊單
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       const existingData = sheet.getRange(2, 2, lastRow - 1, 2).getValues();
@@ -135,7 +144,7 @@ function doPost(e) {
   }
 }
 
-// --- 3. 輔助函式與手動管理 ---
+// --- 3. 管理功能 ---
 function getMenu() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu');
   const data = sheet.getDataRange().getValues();
@@ -149,7 +158,7 @@ function manualOpen() {
   sendDiscordEmbed({
     "title": "📢 【午餐系統手動啟動】",
     "color": 3447003,
-    "description": "今日店家：**" + restaurant + "**\n大家可以開始點餐囉！"
+    "description": "今日店家：**" + restaurant + "**\n開放點餐中！"
   });
 }
 
@@ -158,7 +167,7 @@ function manualClose() {
   sendDiscordEmbed({
     "title": "🛑 【午餐系統手動截止】",
     "color": 15105570,
-    "description": "今日點餐已關閉，準備訂餐去囉～"
+    "description": "點餐已截止，準備向餐廳訂購。"
   });
 }
 
@@ -170,13 +179,13 @@ function deleteLastOrderManually() {
   }
 }
 
-// --- 4. 自動化定時任務 ---
+// --- 4. 自動化排程 ---
 function setupMainTrigger() {
   const allTriggers = ScriptApp.getProjectTriggers();
   allTriggers.forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('archiveOnly').timeBased().everyDays(1).atHour(17).create();
   ScriptApp.newTrigger('openSystemOnly').timeBased().everyDays(1).atHour(7).create();
-  SpreadsheetApp.getUi().alert("自動排程設定完成。");
+  SpreadsheetApp.getUi().alert("✅ 排程設定成功：每日 07:00 開啟、17:00 歸檔。");
 }
 
 function openSystemOnly() {
@@ -187,8 +196,9 @@ function openSystemOnly() {
     sendDiscordEmbed({
       "title": "📢 【午餐定時開啟】",
       "color": 3447003,
-      "description": "今日店家：**" + restaurant + "**\n請在 **08:45** 前完成點餐！"
+      "description": "今日店家：**" + restaurant + "**\n請在 08:45 前下單。"
     });
+    // 設定 08:45 自動關閉
     const today = new Date();
     const closeTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 45);
     ScriptApp.newTrigger('autoCloseSystem').timeBased().at(closeTime).create();
@@ -200,7 +210,7 @@ function autoCloseSystem() {
   sendDiscordEmbed({
     "title": "🛑 【午餐定時截止】",
     "color": 15105570,
-    "description": "點餐時間已到，系統已自動關閉。"
+    "description": "點餐截止，系統已自動關閉。"
   });
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(t => { if(t.getHandlerFunction() === 'autoCloseSystem') ScriptApp.deleteTrigger(t); });
@@ -208,7 +218,7 @@ function autoCloseSystem() {
 
 function archiveOnly() {
   const day = new Date().getDay();
-  if (day === 0 || day === 6) return;
+  if (day === 0 || day === 6) return; // 週末不歸檔
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const o = ss.getSheetByName("Orders"), h = ss.getSheetByName("History");
   if (o.getLastRow() < 2) return;
@@ -216,4 +226,25 @@ function archiveOnly() {
   const historyData = d.map(row => [...row, new Date().toLocaleDateString()]);
   h.getRange(h.getLastRow() + 1, 1, historyData.length, 9).setValues(historyData);
   o.getRange(2, 1, o.getLastRow() - 1, 8).clearContent();
+}
+function debugConnection() {
+  const url = PropertiesService.getScriptProperties().getProperty('LUNCH_WEBHOOK');
+  
+  if (!url) {
+    Logger.log("❌ 錯誤：找不到名為 LUNCH_WEBHOOK 的屬性。請檢查專案設定。");
+    return;
+  }
+  
+  Logger.log("✅ 成功讀取屬性，網址長度為：" + url.length);
+  Logger.log("網址開頭：" + url.substring(0, 30) + "...");
+  
+  try {
+    sendDiscordEmbed({
+      "title": "⚡ 系統連線測試",
+      "description": "如果你看到這則訊息，代表 Webhook 對接成功！"
+    });
+    Logger.log("🚀 已嘗試發送測試訊號，請查看 Discord。");
+  } catch(e) {
+    Logger.log("❌ 傳送失敗，原因：" + e.toString());
+  }
 }
