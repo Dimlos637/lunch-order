@@ -6,7 +6,6 @@
     <title>造型中餐點餐系統</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* 保持你原本優美的 Morandi 風格 */
         :root { --main-green: #556b2f; --bg-color: #f4f7f4; --accent-brown: #8b4513; }
         body { background-color: var(--bg-color); padding: 20px; font-family: "Microsoft JhengHei", sans-serif; }
         .order-card { 
@@ -88,13 +87,9 @@
 </div>
 
 <script>
-    /**
-     * [安全性提示]
-     * 雖然 GAS_URL 在 HTML 中是公開的，但我們已將 Discord Webhook 
-     * 移至 GAS 後端的 Script Properties，確保核心密鑰不會外洩至 GitHub。
-     */
+    // 🔗 請在此填入你 GAS 重新部署後取得的最新網頁應用程式 URL
     const CONFIG = {
-        GAS_API: "https://script.google.com/macros/s/AKfycbyueRiA8FDP84WutZ3XtQ-XyGbusGo4WFgV1Qwa0IqEOsSA3Uky44r9otrA30rqDJ7iYA/exec"
+        GAS_API: "你的新部署網址貼在這裡"
     };
     
     let menuStore = [], currentUnitPrice = 0;
@@ -127,7 +122,6 @@
             });
     };
 
-    // 價格計算與防呆
     function updatePrice() {
         const qtyInput = document.getElementById('quantityInput');
         let qty = parseInt(qtyInput.value) || 1;
@@ -168,7 +162,6 @@
         document.getElementById('changeAmount').innerText = change >= 0 ? `$${change}` : "金額不足";
     }
 
-    // 提交訂單
     document.getElementById('orderForm').onsubmit = function(e) {
         e.preventDefault();
         const qty = parseInt(document.getElementById('quantityInput').value);
@@ -211,7 +204,6 @@
         });
     };
 
-    // 撤回訂單
     document.getElementById('withdrawBtn').onclick = function() {
         const name = document.getElementById('userName').value.trim();
         if (!name) { alert("請輸入姓名以查詢訂單。"); return; }
@@ -235,4 +227,3 @@
 </script>
 </body>
 </html>
-
